@@ -10,17 +10,17 @@ clkVal = False
 spiVal = False
 # Data
 resoln = 0
-direcn = 0
+direcn = 1
 stpCnt = 1
 # Pins
 clkPin = 11
 swtPin = 12
 spiPin = 13
-csPin = 15
-mosiPin = 16
+csPin = 37
+mosiPin = 15
 # Delays
 clkDel = 0.5
-spiDel = 1.3
+spiDel = 0.3
 
 
 class Clock:
@@ -35,44 +35,39 @@ class Clock:
         self.value = value
         for subscriber in self.subscribers:
             subscriber.trigger(value)
-
-class Switch:
-    def __init__(self, pin):
-        self.pin = pin
-        self.subscribers = set()
-    def register(self, module):
-        self.subscribers.add(module)
-    def toggle(self):
-        for subscriber in self.subscribers:
-            subscriber.trigger(value)
             
 class SPI:
-    def __init__(self, mosiPin, csPin, resolution, direction, count):
+    def __init__(self, mosiPin, csPin):
         self.isActive = False
-        self.index = -1
+        self.index = 0
         self.mosiPin = mosiPin
         self.csPin = csPin
-        self.resolution = resolution
-        self.direction = direction
-        self.count = count
         self.binary = []
         
     def trigger(self, value):
         if value & self.isActive:
-            if self.index < 0:
+            print(self.index)
+            if self.index <= 0:
                 GPIO.output(self.csPin, True)
-            elif self.index < 16:
-                GPIO.output(self.mosiPin, True)
+                print('A')
+                GPIO.output(self.mosiPin, self.binary[self.index])
                 self.index = self.index + 1
-            else:
+            elif self.index >= 15:
+                print('B')
+                GPIO.output(self.mosiPin, self.binary[self.index])
                 GPIO.output(self.csPin, False)
-                isActive = False
-            print('Triggered')
-    def active():
-        self.binary = inputToBinary(resolution, direction, count)
+                self.isActive = False
+                self.index = 0
+            else:
+                GPIO.output(self.mosiPin, self.binary[self.index])
+                self.index = self.index + 1
+            
+    def active(self, resolution, direction, count):
+        self.binary = self.inputToBinary(resolution, direction, count)
         self.isActive = True
+        
     ## Transform input to the SPI module into a binary list
-    def inputToBinary(resolution, direction, count):   
+    def inputToBinary(self, resolution, direction, count):   
         binary = [resolution, direction]
         for i in range(13,-1,-1):
             if count >= (1 << i):
@@ -80,37 +75,48 @@ class SPI:
                 binary.append(1)
             else:
                 binary.append(0)
-        binary.reverse()
         return(binary)
 
-def setup()
+def pushButton(self):
+    spi_module.active(resoln, direcn, stpCnt)
+    
+def setup():
     global global_clk, spi_clock, spi_module
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(swtPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.add_event_detect(swtPin, GPIO.RISING, callback=toggle, bouncetime=300)
+    GPIO.add_event_detect(swtPin, GPIO.RISING, callback=pushButton, bouncetime=300)
     global_clk = Clock(clkPin, clkDel)
+    GPIO.setup(clkPin, GPIO.OUT)
     spi_clock = Clock(spiPin, spiDel)
-    spi_module = SPI(mosiPin, csPin, resolution, direction, count)
+    GPIO.setup(spiPin, GPIO.OUT)    
+    spi_module = SPI(mosiPin, csPin)
+    spi_clock.register(spi_module)
+    GPIO.setup(spi_module.mosiPin,GPIO.OUT)
+    GPIO.setup(spi_module.csPin,GPIO.OUT)
+    
 ## Generate clock signal for the chip
 def clock(clk):
     while isActive:
+        GPIO.output(clk.pin, clk.value)
         time.sleep(clk.delay)
         clk.toggle(not(clk.value))
 
 if __name__ == '__main__':
     global global_clk, spi_clock, spi_module
     print("Initialization\n")
-
+    setup()
     try:
         print("Running code\n")
-        clkThread = threading.Thread(target=global_clock, args=(global_clk))
-        spiThread = threading.Thread(target=spi_clock, args=(spi_clock))
+        clkThread = threading.Thread(target=clock, args=(global_clk,))
+        spiThread = threading.Thread(target=clock, args=(spi_clock,))
         clkThread.start()
         spiThread.start()
         clkThread.join()
         spiThread.join()
     except KeyboardInterrupt:
         isActive = False
+        clkThread.join()
+        spiThread.join()
         print("Cleaning up\n")
         GPIO.cleanup()
         print("Done\n")
