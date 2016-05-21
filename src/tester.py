@@ -11,7 +11,7 @@ spiVal = False
 # Data
 resoln = 1
 direcn = 1
-stpCnt = 7
+stpCnt = 8
 # Pins
 clkPin = 11
 swtPin = 12
@@ -19,8 +19,8 @@ spiPin = 13
 csPin = 37
 mosiPin = 15
 # Delays
-clkDel = 0.05
-spiDel = 0.15
+clkDel = 0.1
+spiDel = 0.5
 
 
 class Clock:
@@ -45,27 +45,23 @@ class SPI:
         self.binary = []
         
     def trigger(self, value):
-        if value & self.isActive:
-            print("bit: " + str(self.index) + " = " + str(self.binary[self.index]))
-            if self.index <= 0:
-                GPIO.output(self.csPin, True)
-                GPIO.output(self.mosiPin, self.binary[self.index])
-                self.index = self.index + 1
-            elif self.index >= 15:
-                GPIO.output(self.mosiPin, self.binary[self.index])
+        if value and self.isActive:
+            if self.index > 15:
+                GPIO.output(self.mosiPin, 0)
                 GPIO.output(self.csPin, False)
                 self.isActive = False
-                self.index = 0
                 print("Finished sending data")
             else:
                 GPIO.output(self.mosiPin, self.binary[self.index])
+                print("bit: " + str(self.index) + " = " + str(self.binary[self.index]))
                 self.index = self.index + 1
-            
     def active(self, resolution, direction, count):
         print("Sending data")
         self.binary = self.inputToBinary(resolution, direction, count)
+        self.index = 0
         self.isActive = True
-        
+        GPIO.output(self.csPin, True)
+                
     ## Transform input to the SPI module into a binary list
     def inputToBinary(self, resolution, direction, count):   
         binary = [resolution, direction]
@@ -75,6 +71,7 @@ class SPI:
                 binary.append(1)
             else:
                 binary.append(0)
+        binary.reverse()
         return(binary)
 
 def pushButton(self):
