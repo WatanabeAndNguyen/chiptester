@@ -9,9 +9,9 @@ isActive = True
 clkVal = False
 spiVal = False
 # Data
-resoln = 0
+resoln = 1
 direcn = 1
-stpCnt = 1
+stpCnt = 7
 # Pins
 clkPin = 11
 swtPin = 12
@@ -19,8 +19,8 @@ spiPin = 13
 csPin = 37
 mosiPin = 15
 # Delays
-clkDel = 0.5
-spiDel = 0.3
+clkDel = 0.05
+spiDel = 0.15
 
 
 class Clock:
@@ -46,23 +46,23 @@ class SPI:
         
     def trigger(self, value):
         if value & self.isActive:
-            print(self.index)
+            print("bit: " + str(self.index) + " = " + str(self.binary[self.index]))
             if self.index <= 0:
                 GPIO.output(self.csPin, True)
-                print('A')
                 GPIO.output(self.mosiPin, self.binary[self.index])
                 self.index = self.index + 1
             elif self.index >= 15:
-                print('B')
                 GPIO.output(self.mosiPin, self.binary[self.index])
                 GPIO.output(self.csPin, False)
                 self.isActive = False
                 self.index = 0
+                print("Finished sending data")
             else:
                 GPIO.output(self.mosiPin, self.binary[self.index])
                 self.index = self.index + 1
             
     def active(self, resolution, direction, count):
+        print("Sending data")
         self.binary = self.inputToBinary(resolution, direction, count)
         self.isActive = True
         
@@ -93,6 +93,12 @@ def setup():
     spi_clock.register(spi_module)
     GPIO.setup(spi_module.mosiPin,GPIO.OUT)
     GPIO.setup(spi_module.csPin,GPIO.OUT)
+
+def resetPins():
+    GPIO.output(clkPin, 0)
+    GPIO.output(spiPin, 0)
+    GPIO.output(csPin, 0)
+    GPIO.output(mosiPin, 0)
     
 ## Generate clock signal for the chip
 def clock(clk):
@@ -115,8 +121,7 @@ if __name__ == '__main__':
         spiThread.join()
     except KeyboardInterrupt:
         isActive = False
-        clkThread.join()
-        spiThread.join()
+        resetPins()
         print("Cleaning up\n")
         GPIO.cleanup()
         print("Done\n")
