@@ -11,7 +11,7 @@ spiVal = False
 # Data
 resoln = 1
 direcn = 1
-stpCnt = 8
+stpCnt = 1
 # Pins
 clkPin = 11
 swtPin = 12
@@ -46,7 +46,7 @@ class SPI:
         
     def trigger(self, value):
         if value and self.isActive:
-            if self.index > 15:
+            if self.index >= 15:
                 GPIO.output(self.mosiPin, 0)
                 GPIO.output(self.csPin, False)
                 self.isActive = False
