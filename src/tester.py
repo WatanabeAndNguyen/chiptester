@@ -1,3 +1,17 @@
+####################################################################
+####################################################################
+####################################################################
+######                                                        ######
+######                                                        ######
+######                Stepper Moter Driver                    ######
+######                   Testing Module                       ######
+######                                                        ######
+######          Tramy Nguyen - Leandro Watanabe               ######
+######                                                        ######
+####################################################################
+####################################################################
+####################################################################
+
 import RPi.GPIO as GPIO
 import time
 import threading
@@ -11,7 +25,7 @@ spiVal = False
 # Data
 resoln = 1
 direcn = 1
-stpCnt = 1
+stpCnt = 24
 # Pins
 clkPin = 11
 swtPin = 12
@@ -19,35 +33,43 @@ spiPin = 13
 csPin = 37
 mosiPin = 15
 # Delays
-clkDel = 0.1
-spiDel = 0.5
+clkSpeed = 25
+clkDel = 1/(2 * clkSpeed)
+spiDel = 4*clkDel
 
-
+# 
 class Clock:
+    #
     def __init__(self, pin, delay):
         self.value = False
         self.pin = pin
         self.delay = delay
         self.subscribers = set()
+
+    #
     def register(self, module):
         self.subscribers.add(module)
+
+    #
     def toggle(self, value):
         self.value = value
         for subscriber in self.subscribers:
             subscriber.trigger(value)
-            
+#            
 class SPI:
+    #
     def __init__(self, mosiPin, csPin):
         self.isActive = False
         self.index = 0
         self.mosiPin = mosiPin
         self.csPin = csPin
         self.binary = []
-        
+
+    #    
     def trigger(self, value):
         if value and self.isActive:
-            if self.index >= 15:
-                GPIO.output(self.mosiPin, 0)
+            if self.index > 15:
+                GPIO.output(self.mosiPin, False)
                 GPIO.output(self.csPin, False)
                 self.isActive = False
                 print("Finished sending data")
@@ -55,6 +77,7 @@ class SPI:
                 GPIO.output(self.mosiPin, self.binary[self.index])
                 print("bit: " + str(self.index) + " = " + str(self.binary[self.index]))
                 self.index = self.index + 1
+    #
     def active(self, resolution, direction, count):
         print("Sending data")
         self.binary = self.inputToBinary(resolution, direction, count)
@@ -74,9 +97,11 @@ class SPI:
         binary.reverse()
         return(binary)
 
+# todo: don't let the user press this twice until the first is ready
 def pushButton(self):
     spi_module.active(resoln, direcn, stpCnt)
-    
+
+#    
 def setup():
     global global_clk, spi_clock, spi_module
     GPIO.setmode(GPIO.BOARD)
@@ -91,6 +116,7 @@ def setup():
     GPIO.setup(spi_module.mosiPin,GPIO.OUT)
     GPIO.setup(spi_module.csPin,GPIO.OUT)
 
+#
 def resetPins():
     GPIO.output(clkPin, 0)
     GPIO.output(spiPin, 0)
@@ -104,6 +130,7 @@ def clock(clk):
         time.sleep(clk.delay)
         clk.toggle(not(clk.value))
 
+#
 if __name__ == '__main__':
     global global_clk, spi_clock, spi_module
     print("Initialization\n")
