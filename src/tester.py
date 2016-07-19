@@ -33,31 +33,38 @@ spiPin = 13
 csPin = 37
 mosiPin = 15
 # Delays
-clkSpeed = 25
-clkDel = 1/(2 * clkSpeed)
+clkFreq = 25
+clkDel = 1/(2 * clkFreq)
 spiDel = 4*clkDel
 
-# 
+# This class defines a clock. Every clock is associated with a GPIO pin and
+# a delay that determines the clock frequency. It is possible to register 
+# modules that get updated every time clock changes.
 class Clock:
-    #
+
+    # Construct clock.
     def __init__(self, pin, delay):
         self.value = False
         self.pin = pin
         self.delay = delay
         self.subscribers = set()
 
-    #
+    # Register modules that will listen to this clock.
     def register(self, module):
         self.subscribers.add(module)
 
-    #
+    # When clock changes, the module subscribers should get updated.
     def toggle(self, value):
         self.value = value
         for subscriber in self.subscribers:
             subscriber.trigger(value)
-#            
+
+# This class defines the SPI module for the stepper motor driver. It has
+# two outputs: mosi and cs. The mosi signal is used to transmit serial data to
+# the chip and the cs signal indicates when data is being transmitted.            
 class SPI:
-    #
+
+    # Construct the SPI module
     def __init__(self, mosiPin, csPin):
         self.isActive = False
         self.index = 0
@@ -65,7 +72,12 @@ class SPI:
         self.csPin = csPin
         self.binary = []
 
-    #    
+    # On a positive SPI clock edge, the SPI module is triggered and the values are
+    # updated if the module is in the active state. The active state indicates the
+    # module is in the process of sending serial data to the chip and is not yet
+    # done. The signals of the SPI module will be triggered for 16 cycles after it
+    # enters then active state. Once the the data has been fully transmitted, the
+    # SPI module will be inactive. 
     def trigger(self, value):
         if value and self.isActive:
             if self.index > 15:
@@ -77,7 +89,9 @@ class SPI:
                 GPIO.output(self.mosiPin, self.binary[self.index])
                 print("bit: " + str(self.index) + " = " + str(self.binary[self.index]))
                 self.index = self.index + 1
-    #
+
+    # When the user requests to send signal to the chip, this method will prepare the
+    # SPI module to begin sending data. 
     def active(self, resolution, direction, count):
         print("Sending data")
         self.binary = self.inputToBinary(resolution, direction, count)
@@ -97,11 +111,15 @@ class SPI:
         binary.reverse()
         return(binary)
 
-# todo: don't let the user press this twice until the first is ready
+# There is a switch button that is used to request data to be sent to the chip.
+# This method checks if the user has pressed a button. If so, data will be sent
+# to the chip. While data is being transmitted to the user, other requests will
+# be ignored.
 def pushButton(self):
-    spi_module.active(resoln, direcn, stpCnt)
+    if not(spi_module.isActive):
+        spi_module.active(resoln, direcn, stpCnt)
 
-#    
+#  This method sets up the GPIOs.
 def setup():
     global global_clk, spi_clock, spi_module
     GPIO.setmode(GPIO.BOARD)
@@ -116,21 +134,22 @@ def setup():
     GPIO.setup(spi_module.mosiPin,GPIO.OUT)
     GPIO.setup(spi_module.csPin,GPIO.OUT)
 
-#
+# This method clears up the output values,
 def resetPins():
     GPIO.output(clkPin, 0)
     GPIO.output(spiPin, 0)
     GPIO.output(csPin, 0)
     GPIO.output(mosiPin, 0)
     
-## Generate clock signal for the chip
+# Generates clock signal for the chip
 def clock(clk):
     while isActive:
         GPIO.output(clk.pin, clk.value)
         time.sleep(clk.delay)
         clk.toggle(not(clk.value))
 
-#
+# Each clock is run in a different thread. When stopping the program with a keyboard interrupt,
+# the pins are resetted.
 if __name__ == '__main__':
     global global_clk, spi_clock, spi_module
     print("Initialization\n")
@@ -146,6 +165,7 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         isActive = False
         resetPins()
+        spi_module.isActive = False
         print("Cleaning up\n")
         GPIO.cleanup()
         print("Done\n")
